@@ -38,14 +38,33 @@ else:
     print(f"Server starting with API Key: {GEMINI_API_KEY[:4]}...******")
 
 # --- DATABASE ABSTRACTION (MongoDB with JSON Fallback) ---
+# --- DATABASE ABSTRACTION (MongoDB with JSON Fallback) ---
+import tempfile
+
 class JSONStorage:
     def __init__(self, filename="chat_history.json"):
+        # On Vercel/Lambda, root is read-only. Use /tmp if needed.
         self.filename = filename
-        if not os.path.exists(filename):
-            with open(filename, 'w') as f:
-                json.dump([], f)
+        self.is_writable = True
+        
+        try:
+            if not os.path.exists(filename):
+                with open(filename, 'w') as f:
+                    json.dump([], f)
+        except OSError:
+            # Fallback to temp directory
+            print(f"Warning: Could not write to {filename}. Using temp directory.")
+            self.filename = os.path.join(tempfile.gettempdir(), "chat_history.json")
+            try:
+                if not os.path.exists(self.filename):
+                    with open(self.filename, 'w') as f:
+                        json.dump([], f)
+            except Exception as e:
+                print(f"Critical: Could not write to temp storage either: {e}")
+                self.is_writable = False
 
     def _load(self):
+        if not self.is_writable: return []
         try:
             with open(self.filename, 'r') as f:
                 return json.load(f)
@@ -53,8 +72,12 @@ class JSONStorage:
             return []
 
     def _save(self, data):
-        with open(self.filename, 'w') as f:
-            json.dump(data, f, default=str, indent=2)
+        if not self.is_writable: return
+        try:
+            with open(self.filename, 'w') as f:
+                json.dump(data, f, default=str, indent=2)
+        except Exception as e:
+            print(f"Error saving to JSON: {e}")
 
     async def insert_one(self, document):
         data = self._load()

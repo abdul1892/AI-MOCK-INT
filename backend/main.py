@@ -141,10 +141,10 @@ async def upload_resume(file: UploadFile = File(...)):
             f"{text[:5000]}\n\n"
             "**Guidelines:**\n"
             "1. **Be Conversational**: Do NOT be robotically formal. Speak like a lead engineer chatting with a colleague.\n"
-            "2. **Dynamic Intro**: Do NOT always say 'Hello I am your interviewer'. Instead, vary it. E.g., 'Hey there, I have your resume here, let's dive in', or 'Hi! Impressive work on [ProjectName], tell me more'.\n"
+            "2. **Dynamic Intro**: If this is the START of the conversation, introduce yourself briefly. If the conversation is already flowing, JUST REPLY NATURALLY.\n"
             "3. **Follow Up**: If the candidate gives a short answer, dig deeper. 'Why did you choose that stack?'\n"
             "4. **Strict but Friendly**: Assess skills thoroughly but keep the tone encouraging.\n"
-            "Start the conversation now by picking ONE specific interesting detail from their resume and asking about it directly."
+            "5. **Memory**: Remember what we just discussed. Do not repeat questions."
         )
         
         return {"message": "Resume processed successfully", "context_length": len(RESUME_CONTEXT)}
@@ -172,12 +172,30 @@ async def chat_endpoint(request: ChatRequest):
         except:
             await json_db.insert_one(msg_doc)
 
+        # Retrieve History for Context
+        history_context = ""
+        try:
+            # Fetch last 10 messages
+            past_chats = []
+            if use_mongo:
+                cursor = db.chats.find({"session_id": CURRENT_SESSION_ID}).sort("timestamp", 1).limit(20)
+                past_chats = await cursor.to_list(length=20)
+            else:
+                past_chats = await json_db.find_session(CURRENT_SESSION_ID)
+                past_chats = past_chats[-20:] # Last 20
+            
+            # Format history (Skip the message we just added to avoid duplication in prompt if DB is fast, but usually fine)
+            for msg in past_chats:
+                if msg['content'] == request.message: continue # Don't repeat the current user prompt in history
+                history_context += f"{msg['role'].upper()}: {msg['content']}\n"
+        except Exception as e:
+            print(f"Error fetching history: {e}")
+
         genai.configure(api_key=GEMINI_API_KEY)
         model = genai.GenerativeModel('gemini-flash-latest')
         
-        prompt = request.message
-        if RESUME_CONTEXT:
-            prompt = f"System Instruction: {RESUME_CONTEXT}\n\nUser: {request.message}"
+        system_text = f"System Instruction: {RESUME_CONTEXT}" if RESUME_CONTEXT else ""
+        prompt = f"{system_text}\n\nExisting Conversation History:\n{history_context}\n\nUser: {request.message}\nAlex:"
             
         response = model.generate_content(prompt)
         bot_reply = response.text

@@ -204,7 +204,7 @@ async def chat_endpoint(request: ChatRequest):
         prompt = f"{system_text}\n\nExisting Conversation History:\n{history_context}\n\nUser: {request.message}\nAlex:"
             
         response = client.models.generate_content(
-            model='gemini-1.5-flash',
+            model='gemini-2.5-flash',
             contents=prompt
         )
         bot_reply = response.text
@@ -255,7 +255,7 @@ async def end_interview():
         )
         
         response = client.models.generate_content(
-            model='gemini-1.5-flash',
+            model='gemini-2.5-flash',
             contents=analysis_prompt
         )
         cleaned_response = response.text.replace("```json", "").replace("```", "").strip()

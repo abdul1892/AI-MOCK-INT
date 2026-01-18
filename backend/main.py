@@ -101,8 +101,8 @@ db = None
 use_mongo = False
 
 try:
-    client = AsyncIOMotorClient(MONGODB_URL, serverSelectionTimeoutMS=2000)
-    db = client.interview_simulator
+    mongo_client = AsyncIOMotorClient(MONGODB_URL, serverSelectionTimeoutMS=2000)
+    db = mongo_client.interview_simulator
     # Force a connection check
     # client.server_info() # Synchronous call not allowed here, but motor connects lazily
     print(f"Attempting to connect to MongoDB at {MONGODB_URL}...")

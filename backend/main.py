@@ -3,7 +3,7 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import google.generativeai as genai
+from google import genai
 from dotenv import load_dotenv
 from pypdf import PdfReader
 import io
@@ -27,16 +27,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize Gemini
+# Initialize Gemini Client
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+client = None
 
 print("----------------------------------------------------------------")
 if not GEMINI_API_KEY:
     print("CRITICAL ERROR: GEMINI_API_KEY is missing from environment!")
 else:
     print(f"Server starting with API Key: {GEMINI_API_KEY[:4]}...******")
-    print(f"Google Generative AI Version: {genai.__version__}")
+    try:
+        client = genai.Client(api_key=GEMINI_API_KEY)
+        print("Gemini Client Initialized Successfully (google-genai SDK)")
+    except Exception as e:
+        print(f"Error initializing Gemini Client: {e}")
 
 # --- DATABASE ABSTRACTION (MongoDB with JSON Fallback) ---
 # --- DATABASE ABSTRACTION (MongoDB with JSON Fallback) ---
@@ -192,13 +197,16 @@ async def chat_endpoint(request: ChatRequest):
         except Exception as e:
             print(f"Error fetching history: {e}")
 
-        genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel('gemini-2.5-flash')
-        
+        if client is None:
+             raise HTTPException(status_code=500, detail="Gemini Client not initialized")
+
         system_text = f"System Instruction: {RESUME_CONTEXT}" if RESUME_CONTEXT else ""
         prompt = f"{system_text}\n\nExisting Conversation History:\n{history_context}\n\nUser: {request.message}\nAlex:"
             
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model='gemini-1.5-flash',
+            contents=prompt
+        )
         bot_reply = response.text
 
         # Save Bot Message
@@ -235,8 +243,8 @@ async def end_interview():
         
         transcript = "\n".join([f"{msg['role'].upper()}: {msg['content']}" for msg in history])
         
-        genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        if client is None:
+             raise HTTPException(status_code=500, detail="Gemini Client not initialized")
         
         analysis_prompt = (
             "Analyze the following technical interview transcript.\n"
@@ -246,7 +254,10 @@ async def end_interview():
             f"Transcript:\n{transcript}"
         )
         
-        response = model.generate_content(analysis_prompt)
+        response = client.models.generate_content(
+            model='gemini-1.5-flash',
+            contents=analysis_prompt
+        )
         cleaned_response = response.text.replace("```json", "").replace("```", "").strip()
         
         return {"report": cleaned_response}

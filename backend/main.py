@@ -192,7 +192,7 @@ async def chat_endpoint(request: ChatRequest):
             print(f"Error fetching history: {e}")
 
         genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel('gemini-flash-latest')
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         system_text = f"System Instruction: {RESUME_CONTEXT}" if RESUME_CONTEXT else ""
         prompt = f"{system_text}\n\nExisting Conversation History:\n{history_context}\n\nUser: {request.message}\nAlex:"
@@ -235,7 +235,7 @@ async def end_interview():
         transcript = "\n".join([f"{msg['role'].upper()}: {msg['content']}" for msg in history])
         
         genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel('gemini-flash-latest')
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         analysis_prompt = (
             "Analyze the following technical interview transcript.\n"

@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.env
+
+# NodeJS
+node_modules/
+dist/
+.DS_Store
+
+# Local Data
+chat_history.json

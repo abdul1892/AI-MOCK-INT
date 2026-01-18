@@ -36,6 +36,7 @@ if not GEMINI_API_KEY:
     print("CRITICAL ERROR: GEMINI_API_KEY is missing from environment!")
 else:
     print(f"Server starting with API Key: {GEMINI_API_KEY[:4]}...******")
+    print(f"Google Generative AI Version: {genai.__version__}")
 
 # --- DATABASE ABSTRACTION (MongoDB with JSON Fallback) ---
 # --- DATABASE ABSTRACTION (MongoDB with JSON Fallback) ---
